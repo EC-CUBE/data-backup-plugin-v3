@@ -5,5 +5,5 @@ version: 1.0.0
 #     - /Resource/doctrine
 # migration.path:
 #     - /migration
-# service:
-#     - DataBackup3ServiceProvider
+service:
+    - DataBackup3ServiceProvider
