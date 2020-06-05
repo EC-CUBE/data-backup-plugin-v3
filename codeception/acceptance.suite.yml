@@ -1,0 +1,55 @@
+# Codeception Test Suite Configuration
+
+# suite for acceptance tests.
+# perform tests in browser using the WebDriver or PhpBrowser.
+# If you need both WebDriver and PHPBrowser tests - create a separate suite.
+
+class_name: AcceptanceTester
+modules:
+    enabled:
+        - AcceptanceHelper
+        - WebDriver
+        - Asserts
+    config:
+        WebDriver:
+            browser: chrome
+            url: 'http://localhost'
+            host: 'localhost'
+            port: 9515
+            window_size: 1680x3000
+            wait: 10
+            capabilities:
+                unexpectedAlertBehaviour: 'accept'
+                elementScrollBehavior: 1
+                chromeOptions:
+                  args:
+                    - disable-dev-shm-usage
+                    - no-sandbox
+                    - disable-infobars
+#                    - headless
+                    - disable-gpu
+
+env:
+    chrome:
+        modules:
+            config:
+                WebDriver:
+                    browser: chrome
+                    capabilities:
+                        acceptSslCerts: true
+                        acceptInsecureCerts: true
+                        chromeOptions:
+                            prefs:
+                                download.default_directory: '%PWD%/app/Plugin/Securitychecker3/codeception/_support/_downloads'
+    github_actions:
+        modules:
+            config:
+                WebDriver:
+                    browser: chrome
+                    url: 'https://localhost/ec-cube/html'
+                    capabilities:
+                        acceptSslCerts: true
+                        acceptInsecureCerts: true
+                        chromeOptions:
+                            prefs:
+                                download.default_directory: '%PWD%/app/Plugin/Securitychecker3/codeception/_support/_downloads'

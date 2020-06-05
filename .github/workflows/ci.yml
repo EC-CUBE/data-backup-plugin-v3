@@ -176,14 +176,14 @@ jobs:
         sudo chmod -R o+w ec-cube
         sudo systemctl restart php${PHP_VERSION}-fpm apache2
 
-    # - name: Run Codeception
-    #   if: matrix.php >= 5.6
-    #   env:
-    #     ECCUBE_VERSION: ${{ matrix.eccube_version }}
-    #     PLUGIN_CODE: ${{ matrix.plugin_code }}
-    #   run: |
-    #     cd ec-cube
-    #     vendor/bin/codecept -c app/Plugin/${PLUGIN_CODE}/codeception.yml -vvv run acceptance --env travis --steps
+    - name: Run Codeception
+      if: matrix.php >= 5.6
+      env:
+        ECCUBE_VERSION: ${{ matrix.eccube_version }}
+        PLUGIN_CODE: ${{ matrix.plugin_code }}
+      run: |
+        cd ec-cube
+        vendor/bin/codecept -c app/Plugin/${PLUGIN_CODE}/codeception.yml -vvv run acceptance --env github_actions --steps
 
     - name: Disable Plugin
       env:
@@ -197,4 +197,3 @@ jobs:
       run: |
         cd ec-cube
         sudo php app/console plugin:develop uninstall --code=${PLUGIN_CODE} --uninstall-force=true
-

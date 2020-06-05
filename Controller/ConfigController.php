@@ -39,7 +39,7 @@ class ConfigController
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
-
+            return $app->redirect($app->url('plugin_DataBackup3_config'));
         }
 
         return $app->render('Securitychecker3/Resource/template/admin/config.twig', array(
