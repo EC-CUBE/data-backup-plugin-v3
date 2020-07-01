@@ -1,0 +1,199 @@
+name: CI
+on:
+  push:
+    branches:
+      - '*'
+    tags:
+      - '*'
+    paths:
+      - '**'
+      - '!*.md'
+  pull_request:
+    branches:
+      - '*'
+    paths:
+      - '**'
+      - '!*.md'
+
+jobs:
+  run-on-linux:
+    name: Run on Linux
+    runs-on: ${{ matrix.operating-system }}
+    strategy:
+      fail-fast: false
+      matrix:
+        operating-system: [ ubuntu-18.04 ]
+        php: [ 5.6, 7.1 ]
+        db: [ mysql, pgsql ]
+        eccube_version: [ 3.0.9, 3.0.18 ]
+        plugin_code: [ DataBackup3 ]
+        include:
+          - db: mysql
+            dbport: '3306'
+            dbuser: 'root'
+            dbpass: 'root'
+            dbname: 'myapp_test'
+          - db: pgsql
+            dbport: '5432'
+            dbuser: 'postgres'
+            dbpass: 'password'
+            dbname: 'myapp_test'
+    services:
+      mysql:
+        image: mysql:5.7
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: ${{ matrix.dbname }}
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+      postgres:
+        image: postgres:9.5
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: ${{ matrix.dbname }}
+        ports:
+          - 5432:5432
+        # needed because the postgres container does not provide a healthcheck
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+      mailcatcher:
+        image: schickling/mailcatcher
+        ports:
+          - 1080:1080
+          - 1025:1025
+    steps:
+    - name: Checkout
+      uses: actions/checkout@master
+
+    - name: Setup PHP
+      uses: nanasess/setup-php@master
+      with:
+        php-version: ${{ matrix.php }}
+
+    - name: Archive Plugin
+      env:
+        PLUGIN_CODE: ${{ matrix.plugin_code }}
+      run: |
+        tar cvzf ${GITHUB_WORKSPACE}/${PLUGIN_CODE}.tar.gz ./*
+
+    - name: Clone to EC-CUBE
+      env:
+        ECCUBE_VERSION: ${{ matrix.eccube_version }}
+      run:  |
+        git clone https://github.com/EC-CUBE/ec-cube3.git ec-cube
+        cd ec-cube
+        git checkout -b ${ECCUBE_VERSION} refs/tags/${ECCUBE_VERSION}
+
+    - name: Get Composer Cache Directory
+      id: composer-cache
+      run: |
+        echo "::set-output name=dir::$(composer config cache-files-dir)"
+
+    - uses: actions/cache@v1
+      with:
+        path: ${{ steps.composer-cache.outputs.dir }}
+        key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-composer-
+
+    - name: Install to composer
+      run: |
+        cd ec-cube
+        composer global require --optimize-autoloader "hirak/prestissimo"
+        composer install --no-interaction -o
+        composer --ignore-platform-reqs --dev require sebastian/environment "^1.3"
+        composer --ignore-platform-reqs --dev require sebastian/comparator "^1.2"
+        composer --ignore-platform-reqs --dev require sebastian/diff "^1.4"
+        composer --ignore-platform-reqs --dev require phpunit/phpunit "4.8.36"
+        composer --ignore-platform-reqs --dev require phpunit/php-code-coverage "^2.2"
+        composer --ignore-platform-reqs --dev require codeception/codeception "2.4"
+
+    - name: Setup EC-CUBE
+      env:
+        DB: ${{ matrix.db }}
+        USER: ${{ matrix.dbuser }}
+        DBUSER: ${{ matrix.dbuser }}
+        DBPASS: ${{ matrix.dbpass }}
+        DBNAME: ${{ matrix.dbname }}
+        DBPORT: ${{ matrix.dbport }}
+        DBSERVER: 127.0.0.1
+        ROOT_URLPATH: /ec-cube/html
+      run: |
+        cd ec-cube
+        curl -O https://raw.githubusercontent.com/EC-CUBE/ec-cube3/3.0/eccube_install.sh
+        sed -i "s,PSQL=psql,PSQL=\"psql -h ${DBSERVER}\",g" eccube_install.sh
+        sed -i "s,MYSQL=mysql,MYSQL=\"mysql -h ${DBSERVER}\",g" eccube_install.sh
+        sed -i "2a putenv('USE_SELFSIGNED_SSL_CERTIFICATE=1');" html/index.php
+        export PGPASSWORD=${DBPASS}
+        sh ./eccube_install.sh ${DB} none
+    - name: Setup Plugin
+      env:
+        PLUGIN_CODE: ${{ matrix.plugin_code }}
+      run: |
+        cd ec-cube
+        php app/console plugin:develop install --path=${GITHUB_WORKSPACE}/${PLUGIN_CODE}.tar.gz
+        cd app/Plugin/${PLUGIN_CODE} && composer install --dev --no-interaction -o
+        cd ../../../
+        php app/console plugin:develop enable --code=${PLUGIN_CODE}
+    - name: Run PHPUnit
+      env:
+        PLUGIN_CODE: ${{ matrix.plugin_code }}
+      run: |
+        cd ec-cube
+        vendor/bin/phpunit app/Plugin/${PLUGIN_CODE}/Tests
+
+    - name: setup-chromedriver
+      if: matrix.php >= 5.6
+      uses: nanasess/setup-chromedriver@master
+    - name: Run chromedriver
+      run: |
+        export DISPLAY=:99
+        chromedriver --url-base=/wd/hub &
+        echo ">>> Started chrome-driver"
+        sudo Xvfb -ac :99 -screen 0 1280x1024x24 > /dev/null 2>&1 &
+        echo ">>> Started xvfb"
+    - name: Setup php-fpm
+      if: matrix.php >= 5.6
+      env:
+        PHP_VERSION: ${{ matrix.php }}
+      run: |
+        sudo apt-fast -y install php${PHP_VERSION}-fpm
+        sudo systemctl enable php${PHP_VERSION}-fpm
+
+    - name: Setup Apache
+      if: matrix.php >= 5.6
+      env:
+        PHP_VERSION: ${{ matrix.php }}
+      run: |
+        sudo apt-fast -y install apache2
+        sudo a2enmod rewrite actions proxy_fcgi alias ssl
+        sudo a2enconf php${PHP_VERSION}-fpm
+        sed -i -e "s,%GITHUB_WORKSPACE%,${GITHUB_WORKSPACE},g" build/*.conf
+        sed -i -e "s,%PHP_VERSION%,${PHP_VERSION},g" build/*.conf
+        sudo cp -p build/*.conf /etc/apache2/sites-available
+        sudo a2ensite default-ssl
+        sudo chmod -R o+w ec-cube
+        sudo systemctl restart php${PHP_VERSION}-fpm apache2
+
+    - name: Run Codeception
+      if: matrix.php >= 5.6
+      env:
+        ECCUBE_VERSION: ${{ matrix.eccube_version }}
+        PLUGIN_CODE: ${{ matrix.plugin_code }}
+      run: |
+        cd ec-cube
+        vendor/bin/codecept -c app/Plugin/${PLUGIN_CODE}/codeception.yml -vvv run acceptance --env github_actions --steps
+
+    - name: Disable Plugin
+      env:
+        PLUGIN_CODE: ${{ matrix.plugin_code }}
+      run: |
+        cd ec-cube
+        sudo php app/console plugin:develop disable --code=${PLUGIN_CODE}
+    - name: Uninstall Plugin
+      env:
+        PLUGIN_CODE: ${{ matrix.plugin_code }}
+      run: |
+        cd ec-cube
+        sudo php app/console plugin:develop uninstall --code=${PLUGIN_CODE} --uninstall-force=true
