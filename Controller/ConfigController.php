@@ -1,10 +1,19 @@
 <?php
 
+/*
+ * This file is part of EC-CUBE
+ *
+ * Copyright(c) EC-CUBE CO.,LTD. All Rights Reserved.
+ *
+ * http://www.ec-cube.co.jp/
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 namespace Plugin\DataBackup3\Controller;
 
-use Doctrine\ORM\EntityManagerInterface;
 use Eccube\Application;
-use Eccube\Common\Constant;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 
@@ -13,24 +22,20 @@ class ConfigController
     /**
      * 設定画面
      *
-     * @param Application $app
-     * @param Request $request
      * @return \Symfony\Component\HttpFoundation\Response
      */
     public function index(Application $app, Request $request)
     {
         $form = $app['form.factory']->createBuilder('databackup3_config')->getForm();
-        return $app->render('DataBackup3/Resource/template/admin/config.twig', array(
-            'form' => $form->createView()
-        ));
 
+        return $app->render('DataBackup3/Resource/template/admin/config.twig', [
+            'form' => $form->createView(),
+        ]);
     }
 
     /**
      * バックアップ実行
      *
-     * @param Application $app
-     * @param Request $request
      * @return \Symfony\Component\HttpFoundation\Response
      */
     public function doBackup(Application $app, Request $request)
@@ -54,7 +59,6 @@ class ConfigController
             $phar = new \PharData($tarFile);
             $phar->buildFromDirectory($backupDir);
             $phar->compress(\Phar::GZ);
-
 
             return $app
                 ->sendFile($tarFile.'.gz')

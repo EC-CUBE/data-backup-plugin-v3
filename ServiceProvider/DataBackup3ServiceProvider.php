@@ -1,13 +1,22 @@
 <?php
 
+/*
+ * This file is part of EC-CUBE
+ *
+ * Copyright(c) EC-CUBE CO.,LTD. All Rights Reserved.
+ *
+ * http://www.ec-cube.co.jp/
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 namespace Plugin\DataBackup3\ServiceProvider;
 
-use Eccube\Application;
-use Silex\Application as BaseApplication;
-use Silex\ServiceProviderInterface;
 use Plugin\DataBackup3\Form\Type\DataBackup3ConfigType;
 use Plugin\DataBackup3\Service\DataBackup3Service;
-use Symfony\Component\Yaml\Yaml;
+use Silex\Application as BaseApplication;
+use Silex\ServiceProviderInterface;
 
 class DataBackup3ServiceProvider implements ServiceProviderInterface
 {
@@ -25,9 +34,9 @@ class DataBackup3ServiceProvider implements ServiceProviderInterface
 
         $app['form.types'] = $app->share($app->extend('form.types', function ($types) use ($app) {
             $types[] = new DataBackup3ConfigType($app['config']);
+
             return $types;
         }));
-
     }
 
     public function boot(BaseApplication $app)
