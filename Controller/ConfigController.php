@@ -28,9 +28,9 @@ class ConfigController
     {
         $form = $app['form.factory']->createBuilder('databackup3_config')->getForm();
 
-        return $app->render('DataBackup3/Resource/template/admin/config.twig', [
+        return $app->render('DataBackup3/Resource/template/admin/config.twig', array(
             'form' => $form->createView(),
-        ]);
+        ));
     }
 
     /**
