@@ -1,11 +1,22 @@
 <?php
 
+/*
+ * This file is part of EC-CUBE
+ *
+ * Copyright(c) EC-CUBE CO.,LTD. All Rights Reserved.
+ *
+ * http://www.ec-cube.co.jp/
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 namespace Plugin\DataBackup3\Service;
 
-use Doctrine\DBAL\Schema\Column;
-use Eccube\Application;
 use Doctrine\DBAL\Schema\AbstractSchemaManager;
+use Doctrine\DBAL\Schema\Column;
 use Doctrine\DBAL\Schema\Table;
+use Eccube\Application;
 
 class DataBackup3Service
 {
@@ -28,7 +39,7 @@ class DataBackup3Service
         $tables = $sm->listTables();
 
         return array_map(function ($table) {
-            /** @var Table $table */
+            /* @var Table $table */
             return $table->getName();
         }, $tables);
     }
@@ -45,7 +56,7 @@ class DataBackup3Service
         $columns = $sm->listTableColumns($tableName);
 
         return array_map(function ($column) {
-            /** @var Column $column */
+            /* @var Column $column */
             return $column->getName();
         }, $columns);
     }
@@ -55,12 +66,14 @@ class DataBackup3Service
         $conn = $this->app['orm.em']->getConnection();
         $sql = 'SELECT * FROM '.$tableName;
         $stmt = $conn->query($sql);
+
         return $stmt->fetchAll();
     }
 
     /**
      * @param string $tableName
      * @param string $dumpDir
+     *
      * @return bool
      */
     public function dumpCSV($tableName, $dumpDir)
@@ -81,6 +94,6 @@ class DataBackup3Service
             return true;
         }
 
-        throw new \LogicException;
+        throw new \LogicException();
     }
 }
